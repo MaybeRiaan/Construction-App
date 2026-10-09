@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "Playdar",
+    "slug": "playdar",
+    "scheme": "playdar",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#E7EAEF",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.playdar.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "app.playdar.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#101216",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#E7EAEF",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#1C1F25"
+          }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Playdar uses your location to find parks, playgrounds and activities near you, and to draw your trail during a Hard Hat Hunt."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Playdar uses the camera so you can snap construction machines in Hard Hat Hunt.",
+          "photosPermission": "Playdar lets you pick a photo of a construction machine you spotted.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "REPLACE_WITH_ANDROID_GOOGLE_MAPS_KEY"
+        }
+      ]
+    ]
+  }
+}
