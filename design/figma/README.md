@@ -16,7 +16,7 @@ The file was built through Figma's MCP connection, which allows 20 calls a month
 
 1. Open the file in the **Figma desktop app** (development plugins don't run in the browser).
 2. Main menu → **Plugins → Development → Import plugin from manifest…** and choose `design/figma/finish-flow/manifest.json`.
-3. Run **Plugins → Development → Playdar · finish flow**. It takes under a minute and closes with a summary.
+3. Run **Plugins → Development → Playdar · finish flow**. It takes a minute or so and closes with a summary.
 
 It adds the last eight boards (E12–E15 and four dark-mode boards), groups the boards into sections, wires the taps for the clickable prototype (buttons, rows, map pins, tab bars and the scanning screen's auto-advance), sets the flow starting points, adds a read-me board, labels the Components page and deletes the hidden `_build data` frame. Running it a second time does nothing.
 
