@@ -23,6 +23,8 @@ Scan the QR code with the **Expo Go** app (iOS or Android). Choose *Use my locat
 
 **In a browser:** `npx expo start --web`, or build the single-file prototype with `npm run build:artifact` (writes `dist/artifact/playdar.html`).
 
+**In Figma:** every screen as an editable board, with the shared components and colour variables, in [Playdar — App flow](https://www.figma.com/design/hp3qNzSk2pgTB5RMJrw7Ys). See [design/figma/README.md](design/figma/README.md).
+
 ## What's in the app
 
 | Area | Features |
@@ -53,6 +55,7 @@ src/
   shell/                 AppShell.web draws the phone frame on wide screens
 supabase/                Postgres schema (RLS, PostGIS) and Claude-powered edge functions
 scripts/build-artifact.mjs   bundles the web build into one HTML file
+design/figma/            the Figma file and a one-off plugin that finishes it
 docs/                    product spec, architecture, screenshots
 ```
 

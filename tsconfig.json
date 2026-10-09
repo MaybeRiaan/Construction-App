@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["node_modules", "dist", "supabase/functions", "babel.config.js", "metro.config.js", "android", "ios"]
+  "exclude": ["node_modules", "dist", "supabase/functions", "design", "babel.config.js", "metro.config.js", "android", "ios"]
 }
