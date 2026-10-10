@@ -33,9 +33,11 @@ Scan the QR code with the **Expo Go** app (iOS or Android). Choose *Use my locat
 | Places | Cover art, distance and travel time, Vibe Meter with vote breakdown and top tags, amenities, hours, events, parent tips, partner offers, directions |
 | Vibe check | One tap (Not a vibe → Total vibe), what stood out, who came, an optional tip. Posted as "Parent of 2", never names |
 | Ask Playdar | Plain-English search ("somewhere shady with toilets for a 2-year-old"), answered by Claude from the places in range |
+| Add a place | For parents, by parents: drop a pin on a spot Playdar is missing and add the details. Likely duplicates are flagged, a person reviews every place, and approved ones go live for every family as a *Parent pick* |
+| Scout points | +50 when a place you added goes live, +25 when 3 other families rate it a vibe. Ranks from New scout to Legend scout, saved up for partner rewards |
 | Saved | Favourites, Want to try, Rainy day lists; your vibe checks |
 | Hard Hat Hunt | Start a hunt (trail, timer, famous-machine alerts), snap and identify machines, name them, XP and levels, the Yard collection (20 machines), daily mission, weekly Digger Bingo, Family Race to 10, badges, name voting, find famous machines, weekly leaderboard |
-| Family | Kids (ages only drive suggestions), team name, theme, units, data source, sharing, venue sign-up, privacy & safety |
+| Family | Kids (ages only drive suggestions), team name, Scout points and your places, review queue (for reviewers), theme, units, data source, sharing, venue sign-up, privacy & safety |
 
 ## Project layout
 
@@ -46,12 +48,12 @@ src/
   ui/                    design-system primitives (Surface, Button, Chip, Sheet, Slider…)
   art/                   generated cover art, 20 machine illustrations, logo
   data/                  categories, vehicles, challenges, demo town + sample community
-  domain/                pure logic: geo, search & ranking, vibe scoring, opening hours, game rules
-  state/                 zustand stores (settings, places, hunt) + data providers
+  domain/                pure logic: geo, search & ranking, vibe scoring, opening hours, game rules, Scout points
+  state/                 zustand stores (settings, places, hunt, contribute) + data providers
   services/              location, camera, AI, OpenStreetMap import, weather, backends
   map/                   AppMap.tsx (native maps) and AppMap.web.tsx (stylised SVG town)
   navigation/            stack (native) / stack.web (animated JS stack), tab bar
-  screens/               explore, place, saved, hunt, profile, onboarding
+  screens/               explore, place, saved, hunt, contribute, profile, onboarding
   shell/                 AppShell.web draws the phone frame on wide screens
 supabase/                Postgres schema (RLS, PostGIS) and Claude-powered edge functions
 scripts/build-artifact.mjs   bundles the web build into one HTML file
@@ -76,14 +78,14 @@ Platform-specific code uses React Native file extensions: `foo.tsx` is the nativ
 The app runs fully on the device with no setup. Three backends plug in behind one interface (`src/services/backend`):
 
 1. **On-device demo** (default): your data stays on the phone; sample families fill the leaderboard and famous machines.
-2. **claude.ai artifact runtime**: when the web build runs as an artifact, spots, name votes, vibe checks and the leaderboard are shared between everyone who opens it, and Claude identifies photos.
+2. **claude.ai artifact runtime**: when the web build runs as an artifact, spots, name votes, vibe checks, the leaderboard and added places are shared between everyone who opens it, and Claude identifies photos. The artifact's owner and editors see the review queue.
 3. **Supabase** (production): set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example` and [supabase/README.md](supabase/README.md)).
 
 Places come from the **Riverbend demo town** (fictional, for previews) or, in live mode, **OpenStreetMap** via the Overpass API (free, worldwide). Map data © OpenStreetMap contributors.
 
 ## Privacy and safety
 
-Kids never have accounts. Shared machines show a location rounded to about 150 m (rounded again on the server). Photos are checked for people and kept private if any are found, and public photos wait for moderation in the Supabase backend. Partner venues are labelled and never change ratings or the order of results. More in [docs/PRODUCT.md](docs/PRODUCT.md).
+Kids never have accounts. Shared machines show a location rounded to about 150 m (rounded again on the server). Added places are pinned on the venue, never on the family, and a person checks each one before it's public. Photos are checked for people and kept private if any are found, and public photos wait for moderation in the Supabase backend. Partner venues are labelled and never change ratings or the order of results. More in [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ## Before the app stores
 

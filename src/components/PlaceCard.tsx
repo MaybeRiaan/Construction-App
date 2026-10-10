@@ -70,7 +70,11 @@ export function PlaceRow({ p, onPress, style }: { p: PlaceView; onPress: () => v
     >
       <View style={{ width: 92, height: 92, borderRadius: radii.md, overflow: 'hidden' }}>
         <CategoryArt category={p.category} seed={p.coverSeed} width={92} height={92} />
-        {p.sponsored ? <Pill label="Partner" tone="accent" icon="star" style={{ position: 'absolute', left: 6, top: 6, height: 20, paddingHorizontal: 6 }} /> : null}
+        {p.sponsored ? (
+          <Pill label="Partner" tone="accent" icon="star" style={{ position: 'absolute', left: 6, top: 6, height: 20, paddingHorizontal: 6 }} />
+        ) : p.source === 'community' ? (
+          <Pill label="Parent pick" tone="ink" icon="users" style={{ position: 'absolute', left: 6, top: 6, height: 20, paddingHorizontal: 6 }} />
+        ) : null}
       </View>
       <View style={{ flex: 1, gap: 5, minWidth: 0 }}>
         <T variant="h3" numberOfLines={1}>

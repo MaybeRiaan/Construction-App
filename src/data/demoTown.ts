@@ -97,6 +97,8 @@ interface Raw {
   keywords?: string[];
   sponsored?: Sponsorship;
   events?: () => PlaceEvent[];
+  /** Added by a parent through "Add a place" (shown as a parent pick). */
+  addedBy?: string;
 }
 
 const RAW: Raw[] = [
@@ -504,6 +506,28 @@ const RAW: Raw[] = [
     ages: [1, 10], price: 0, indoor: false, hours: 'always', duration: '30 min',
     vibe: [4.5, 44, ['quiet', 'toddlers']], keywords: ['trains', 'railway', 'freight', 'picnic'],
   },
+
+  // Added by parents ---------------------------------------------------------
+  {
+    id: 'puddle-lane', name: 'Puddle Lane Pocket Park', category: 'playgrounds', x: -1150, y: 1650, area: 'Riverbend', address: 'Behind Puddle Lane Bakery',
+    blurb: 'A tiny fenced playground behind the bakery. Never busy.',
+    description: 'A pocket-sized playground tucked behind Puddle Lane Bakery: two swings, a little climbing frame and a sandpit, all inside a low fence. Perfect when the big parks are packed.',
+    highlights: ['Fully fenced', 'Never busy', 'Bakery next door'],
+    amenities: ['fenced', 'shade'],
+    ages: [1, 6], price: 0, indoor: false, hours: 'always', duration: '45 min',
+    vibe: [4.7, 9, ['fenced', 'quiet', 'toddlers']], keywords: ['swings', 'sandpit', 'quiet', 'small'],
+    addedBy: 'Parent of 2',
+  },
+  {
+    id: 'heron-hide', name: 'Heron Point Bird Hide', category: 'sights', x: 5600, y: 1700, area: 'Willow Lake', address: 'Lakeshore path, east end',
+    blurb: 'A lakeside bird hide with a ramp and kid-height windows.',
+    description: 'A wooden hide on the east shore of Willow Lake with a ramp, benches and windows low enough for small spotters. Herons fish right in front of it most mornings.',
+    highlights: ['Kid-height windows', 'Ramp access', 'Herons most mornings'],
+    amenities: ['accessible', 'stroller', 'picnic'],
+    ages: [3, 12], price: 0, indoor: false, hours: 'always', duration: '30 min',
+    vibe: [4.5, 6, ['quiet', 'big-kids']], keywords: ['birds', 'herons', 'lake', 'binoculars', 'nature'],
+    addedBy: 'Parent of a 6yo',
+  },
 ];
 
 let cache: { key: string; places: Place[] } | null = null;
@@ -513,7 +537,8 @@ export function buildDemoPlaces(center: LatLng): Place[] {
   if (cache?.key === key) return cache.places;
   const places = RAW.map((r, i): Place => ({
     id: `demo:${r.id}`,
-    source: 'demo',
+    source: r.addedBy ? 'community' : 'demo',
+    addedBy: r.addedBy,
     name: r.name,
     category: r.category,
     coordinate: offset(center, r.x, r.y),

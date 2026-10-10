@@ -208,8 +208,9 @@ export function ExploreScreen() {
             />
           ))}
         </ScrollView>
-        <View style={{ alignItems: 'flex-end', paddingHorizontal: 16 }} pointerEvents="box-none">
+        <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, gap: 10 }} pointerEvents="box-none">
           <IconButton icon="locate" label="Show my area" variant="float" size={44} onPress={() => map.current?.fitRadius(liveRadius)} />
+          <IconButton icon="plus" label="Add a place" variant="float" size={44} onPress={() => nav.navigate('AddPlace')} />
         </View>
       </View>
 
@@ -373,6 +374,25 @@ export function ExploreScreen() {
             ))}
           </View>
         )}
+        {data.status === 'ready' ? (
+          <Press
+            onPress={() => nav.navigate('AddPlace')}
+            accessibilityRole="button"
+            accessibilityLabel="Add a place"
+            style={[neu(c, 'insetSm'), { marginHorizontal: 20, marginTop: 18, borderRadius: radii.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }]}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="plus" size={20} color={c.onAccent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <T variant="bodyStrong">Know a spot we’re missing?</T>
+              <T variant="small" tone="muted">
+                Add it for other families and earn Scout points.
+              </T>
+            </View>
+            <Icon name="chevronRight" size={18} color={c.muted} />
+          </Press>
+        ) : null}
       </Sheet>
 
       {/* Selected pin preview */}

@@ -90,12 +90,49 @@ export interface Place {
   durationHint?: string;
   website?: string;
   phone?: string;
+  /** Places parents added: who added it, as a label like "Parent of 2". */
+  addedBy?: string;
   stats?: VibeStats;
   sponsored?: Sponsorship;
   events?: PlaceEvent[];
   keywords?: string[];
   /** Seed for the generated cover illustration. */
   coverSeed: number;
+}
+
+/**
+ * A place a parent suggests. It waits in a review queue and only goes on the
+ * map for other families once a reviewer approves it.
+ */
+export interface PlaceSubmission {
+  id: string;
+  name: string;
+  category: CategoryId;
+  /** The place itself (a public venue), not where the parent is. */
+  coordinate: LatLng;
+  ages: AgeBand[];
+  amenities: AmenityId[];
+  /** 0 = free, 1 = paid. */
+  price: 0 | 1;
+  indoor: boolean;
+  tip?: string;
+  website?: string;
+  /** Short author label, e.g. "Parent of 2". Never a name. */
+  author: string;
+  createdAt: string;
+  /** Demo content shipped with the prototype. */
+  sample?: boolean;
+}
+
+export type RejectReason = 'duplicate' | 'private' | 'not-for-kids' | 'not-enough-info' | 'closed';
+
+export interface SubmissionReview {
+  submissionId: string;
+  status: 'approved' | 'rejected';
+  reason?: RejectReason;
+  /** The published place, when approved. */
+  placeId?: string;
+  reviewedAt: string;
 }
 
 export type VibeScore = 1 | 2 | 3 | 4 | 5;

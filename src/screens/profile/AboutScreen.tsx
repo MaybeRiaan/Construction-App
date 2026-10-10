@@ -14,7 +14,8 @@ const POINTS: { icon: IconName; title: string; body: string }[] = [
   { icon: 'thumbsUp', title: 'Names, not people, get votes', body: 'Other families vote on machine names. There are no comments, followers or direct messages.' },
   { icon: 'star', title: 'Ads are labelled', body: 'Partner venues are marked as partners and never change ratings or the order of results.' },
   { icon: 'sparkles', title: 'One family, one vibe', body: 'Each family gets one vibe check per place, so ratings reflect real visits.' },
-  { icon: 'globe', title: 'Open data', body: 'Live places come from OpenStreetMap. Missing a favourite? Suggest it and it helps everyone.' },
+  { icon: 'listChecks', title: 'Added places are checked', body: 'Places parents add are checked by a person before they go live. No homes or schools, and the parent shows only as “Parent of 2”.' },
+  { icon: 'globe', title: 'Open data', body: 'Live places come from OpenStreetMap. Missing a favourite? Add it from the Explore map and it helps everyone.' },
 ];
 
 export function AboutScreen() {

@@ -26,7 +26,10 @@ export interface AppMapHandle {
 
 export interface AppMapProps {
   origin: LatLng;
+  /** How much map to show at first, in km around origin. */
   radiusKm?: number;
+  /** Draw radiusKm as the dashed radar range ring (default true). */
+  showRange?: boolean;
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
   onMapPress?: () => void;
@@ -40,5 +43,7 @@ export interface AppMapProps {
   pulseKey?: number;
   /** false = a static preview that ignores touches. */
   interactive?: boolean;
+  /** Called with the coordinate under the middle of the visible map after it moves. */
+  onCenterChange?: (center: LatLng) => void;
   style?: StyleProp<ViewStyle>;
 }

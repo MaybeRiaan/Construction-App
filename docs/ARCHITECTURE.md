@@ -17,23 +17,25 @@ React Navigation is used directly rather than Expo Router so the web build can r
 screens/ ──► components/, ui/ (presentation)
    │
    ├──► state/ providers: Location → Community → Places (React context)
-   │       └─ stores: settings, places (saved, vibes, filters), hunt (spots, hunts, XP claims, votes)
+   │       └─ stores: settings, places (saved, vibes, filters), hunt (spots, hunts, XP claims, votes),
+   │                  contribute (places you added and whether they were sent)
    │
-   ├──► domain/ (pure, platform-free): geo, search/ranking, vibe scoring, opening hours, game rules
+   ├──► domain/ (pure, platform-free): geo, search/ranking, vibe scoring, opening hours, game rules,
+   │                                   contribute (duplicate check, Scout points and ranks)
    │
    └──► services/ (side effects, platform-split):
            location(.web), camera(.web), weather(.web), storage(.web), haptics, directions,
            places/osm (Overpass import), ai (identify + ask), backend/{demo, artifact, supabase}
 ```
 
-The domain layer has no React or platform imports, so XP, challenges, bingo, ranking and vibe maths can be unit-tested or moved to the server.
+The domain layer has no React or platform imports, so XP, challenges, bingo, ranking, vibe maths and Scout points can be unit-tested or moved to the server.
 
 ## Platform files
 
 | Concern | Native (`*.tsx`/`*.ts`) | Web (`*.web.*`) |
 | --- | --- | --- |
-| Map | react-native-maps with custom markers, circle, polyline | SVG town with pan, pinch, wheel and double-tap zoom, clustering, radar pulse |
-| Stack | `@react-navigation/native-stack` | `@react-navigation/stack` (animated cards inside the frame) |
+| Map | react-native-maps with custom markers, circle, polyline | SVG town with pan, pinch, wheel and double-tap zoom, clustering, radar pulse. The town is drawn around its centre; `origin` only sets where the camera starts |
+| Stack | `@react-navigation/native-stack` | `@react-navigation/stack` (animated cards inside the frame; `headerMode: 'float'` keeps each screen in its card, so bottom bars stay on screen on phones) |
 | Location | expo-location | demo town centre |
 | Camera | expo-image-picker + expo-image-manipulator (320 px thumb, 1024 px for AI) | hidden file input + canvas resize |
 | Fonts | expo-font with @expo-google-fonts | Google Fonts stylesheet |
@@ -43,8 +45,9 @@ The domain layer has no React or platform imports, so XP, challenges, bingo, ran
 ## Data flow
 
 - **LocationProvider** decides the origin: the device (when permission is granted) or the demo centre.
-- **CommunityProvider** picks a backend once: artifact runtime if `window.claude` exists, Supabase if configured, otherwise the on-device demo. It merges other families' spots, votes, vibe checks and players with yours, and syncs your votes, vibe checks and player stats (debounced). Spots are published only when named, shared, and free of people.
-- **PlacesProvider** loads places (demo town or OpenStreetMap import), folds in community and personal vibe checks, and decorates each place with distance, travel time, vibe score and open state.
+- **CommunityProvider** picks a backend once: artifact runtime if `window.claude` exists, Supabase if configured, otherwise the on-device demo. It merges other families' spots, votes, vibe checks and players with yours, and syncs your votes, vibe checks and player stats (debounced). Spots are published only when named, shared, and free of people. It also sends the places you add (retrying any that didn't go through), and for reviewers exposes the review queue and `reviewPlace`.
+- **PlacesProvider** loads places (demo town or OpenStreetMap import), adds approved places from parents, folds in community and personal vibe checks, and decorates each place with distance, travel time, vibe score and open state.
+- **useScout** works out Scout points from your added places, their reviews and other families' vibe checks (on Supabase the server's ledger total wins).
 
 ## Backends
 
@@ -55,6 +58,9 @@ The domain layer has no React or platform imports, so XP, challenges, bingo, ran
 | Votes | local | `votes/<viewer>` docs (each viewer writes only their own) | `spot_votes` |
 | Vibe checks | local | `vibes/<viewer>` | `vibe_checks` (one per family per place) |
 | Leaderboard | sample crews | `players/<viewer>` | `leaderboard_weekly` view (XP recomputed server-side) |
+| Added places | on-device queue, plus sample suggestions to review | `submissions/<viewer>` (only owner and editors read them all) | `place_submissions` (yours, or all for moderators) |
+| Review | you play the Playdar team | owner and editors write `places/<placeId>` then `reviews/<submissionId>` | `review_place_submission()`, moderators only |
+| Scout points | counted on the device | counted on the device from reviews and vibe checks | `points_ledger`, written only by the database |
 | Photo AI / Ask | off | `sample` capability (viewer's Claude) | edge functions calling the Claude API |
 
 ## AI

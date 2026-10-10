@@ -44,6 +44,8 @@ export interface ArtifactDb {
 export interface ArtifactUser {
   id(): Promise<string | null>;
   isOwner(): Promise<boolean>;
+  /** Editor or owner: may write paths the rules reserve for `admin`. */
+  canEdit(): Promise<boolean>;
   can(name: string): Promise<boolean | null>;
 }
 

@@ -16,11 +16,13 @@ function regionFor(center: LatLng, km: number): Region {
 }
 
 export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
-  { origin, radiusKm, markers, onMarkerPress, onMapPress, trail, you, showUser = true, padding = { top: 0, bottom: 0 }, interactive = true, style },
+  { origin, radiusKm, showRange = true, markers, onMarkerPress, onMapPress, trail, you, showUser = true, padding = { top: 0, bottom: 0 }, interactive = true, onCenterChange, style },
   ref,
 ) {
   const { c, scheme } = useTheme();
   const map = useRef<MapView>(null);
+  const centerCb = useRef(onCenterChange);
+  centerCb.current = onCenterChange;
   const [tracking, setTracking] = useState(true);
   const style_ = useMemo(() => googleMapStyle(c), [c]);
 
@@ -55,8 +57,9 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
         showsPointsOfInterests={false}
         mapPadding={{ top: padding.top, bottom: padding.bottom, left: 0, right: 0 }}
         onPress={() => onMapPress?.()}
+        onRegionChangeComplete={(r) => centerCb.current?.({ latitude: r.latitude, longitude: r.longitude })}
       >
-        {radiusKm ? (
+        {radiusKm && showRange ? (
           <Circle center={origin} radius={radiusKm * 1000} strokeColor={c.map.radiusStroke} fillColor={c.map.radiusFill} strokeWidth={1.5} lineDashPattern={[6, 6]} />
         ) : null}
         {trail && trail.length > 1 ? (

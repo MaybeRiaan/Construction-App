@@ -1,4 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { AddPlaceScreen } from '../screens/contribute/AddPlaceScreen';
+import { ReviewScreen } from '../screens/contribute/ReviewScreen';
+import { ScoutScreen } from '../screens/contribute/ScoutScreen';
 import { ExploreScreen } from '../screens/explore/ExploreScreen';
 import { FiltersScreen } from '../screens/explore/FiltersScreen';
 import { SearchScreen } from '../screens/explore/SearchScreen';
@@ -63,6 +66,9 @@ export function RootNavigator() {
       <Stack.Screen name="Kids" component={KidsScreen} />
       <Stack.Screen name="Business" component={BusinessScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="AddPlace" component={AddPlaceScreen} options={modal} />
+      <Stack.Screen name="Scout" component={ScoutScreen} />
+      <Stack.Screen name="Review" component={ReviewScreen} />
     </Stack.Navigator>
   );
 }

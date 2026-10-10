@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { hasSupabase } from '../config';
 import { fuzz } from '../domain/geo';
-import type { LeaderboardEntry, Spot } from '../domain/types';
+import type { LeaderboardEntry, PlaceSubmission, Spot } from '../domain/types';
 import { aiStatus, type AiStatus } from '../services/ai';
 import { inArtifact } from '../services/artifactRuntime';
 import { createArtifactBackend } from '../services/backend/artifact';
 import { createDemoBackend } from '../services/backend/demo';
 import { createSupabaseBackend } from '../services/backend/supabase';
-import type { Backend, CommunityState } from '../services/backend/types';
+import type { Backend, CommunityState, Verdict } from '../services/backend/types';
+import { useContribute } from './contribute';
 import { totalXp, useHunt } from './hunt';
 import { useLocation } from './LocationProvider';
 import { usePlaces } from './places';
@@ -24,6 +25,12 @@ export interface Community extends CommunityState {
   publish: (spot: Spot) => void;
   unpublish: (spotId: string) => void;
   ai: AiStatus | null;
+  /** Save a new place and send it for review. Resolves true once the backend has it. */
+  submitPlace: (sub: PlaceSubmission) => Promise<boolean>;
+  /** Reviewers: approve or reject a place. */
+  reviewPlace: (sub: PlaceSubmission, verdict: Verdict) => Promise<boolean>;
+  /** Clear what the backend keeps on this device (Reset demo data). */
+  resetLocal: () => Promise<void>;
 }
 
 const Ctx = createContext<Community | null>(null);
@@ -37,7 +44,19 @@ function pickBackend(): Backend {
 export function CommunityProvider({ children }: { children: ReactNode }) {
   const { origin } = useLocation();
   const backend = useMemo(pickBackend, []);
-  const [state, setState] = useState<CommunityState>({ backend: backend.kind, status: 'connecting', spots: [], votes: {}, vibes: [], players: [] });
+  const [state, setState] = useState<CommunityState>({
+    backend: backend.kind,
+    status: 'connecting',
+    spots: [],
+    votes: {},
+    vibes: [],
+    players: [],
+    places: [],
+    reviews: {},
+    queue: [],
+    canReview: false,
+    canSubmit: true,
+  });
   const [ai, setAi] = useState<AiStatus | null>(null);
 
   useEffect(() => backend.start(origin, (patch) => setState((s) => ({ ...s, ...patch }))), [backend, origin]);
@@ -75,6 +94,38 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [backend, teamName, xp, mySpots.length, types]);
 
+  // Places this family added: send any the backend hasn't accepted yet (newest
+  // 30). One send at a time, and each sends the latest list, so a send queued
+  // behind another covers anything added meanwhile.
+  const sending = useRef<Promise<void>>(Promise.resolve());
+  const sendSubmissions = useCallback(() => {
+    const run = sending.current.then(async () => {
+      const { submissions, sent } = useContribute.getState();
+      if (!submissions.some((x) => !sent[x.id])) return;
+      const ids = await backend.syncSubmissions(submissions.slice(0, 30));
+      if (ids.length) useContribute.getState().markSent(ids);
+    });
+    sending.current = run.catch(() => undefined);
+    return run;
+  }, [backend]);
+
+  const unsent = useContribute((s) => s.submissions.some((x) => !s.sent[x.id]));
+  const ready = state.status !== 'connecting' && state.canSubmit;
+  useEffect(() => {
+    if (ready && unsent) void sendSubmissions().catch(() => undefined);
+  }, [ready, unsent, sendSubmissions]);
+
+  const submitPlace = useCallback(
+    async (sub: PlaceSubmission) => {
+      useContribute.getState().add(sub);
+      await sendSubmissions().catch(() => undefined);
+      return Boolean(useContribute.getState().sent[sub.id]);
+    },
+    [sendSubmissions],
+  );
+  const reviewPlace = useCallback((sub: PlaceSubmission, verdict: Verdict) => backend.review(sub, verdict), [backend]);
+  const resetLocal = useCallback(() => backend.resetLocal(), [backend]);
+
   const publish = useCallback(
     (spot: Spot) => {
       if (!spot.isPublic || !sharePublicly) return;
@@ -99,8 +150,11 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       publish,
       unpublish,
       ai,
+      submitPlace,
+      reviewPlace,
+      resetLocal,
     };
-  }, [state, mySpots, sharePublicly, teamName, xp, types, myVotes, toggleVoteLocal, publish, unpublish, ai]);
+  }, [state, mySpots, sharePublicly, teamName, xp, types, myVotes, toggleVoteLocal, publish, unpublish, ai, submitPlace, reviewPlace, resetLocal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

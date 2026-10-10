@@ -26,6 +26,9 @@ export type RootStackParamList = {
   Kids: undefined;
   Business: undefined;
   About: undefined;
+  AddPlace: undefined;
+  Scout: undefined;
+  Review: undefined;
 };
 
 declare global {

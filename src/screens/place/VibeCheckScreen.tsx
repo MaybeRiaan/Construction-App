@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AGE_BANDS, ageBandFor, VIBE_LEVELS, VIBE_TAGS } from '../../data/vibes';
+import { parentLabel } from '../../domain/contribute';
 import { newId } from '../../domain/id';
 import type { AgeBand, VibeScore } from '../../domain/types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -39,7 +40,7 @@ export function VibeCheckScreen() {
   const [ages, setAges] = useState<AgeBand[]>(existing?.ages ?? defaultBands);
   const [note, setNote] = useState(existing?.note ?? '');
 
-  const author = kids.length ? `Parent of ${kids.length === 1 ? `a ${kids[0].age}yo` : kids.length}` : 'A parent';
+  const author = parentLabel(kids.map((k) => k.age));
   const level = score ? VIBE_LEVELS[score - 1] : null;
 
   const submit = () => {

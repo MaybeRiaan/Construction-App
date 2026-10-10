@@ -4,7 +4,7 @@
  * replaced by real shared data when a backend is connected.
  */
 import { offset } from '../domain/geo';
-import type { LatLng, LeaderboardEntry, Spot, VehicleTypeId } from '../domain/types';
+import type { AgeBand, AmenityId, CategoryId, LatLng, LeaderboardEntry, PlaceSubmission, Spot, VehicleTypeId } from '../domain/types';
 
 const SAMPLE_SPOTS: [id: string, type: VehicleTypeId, name: string, x: number, y: number, team: string, votes: number, area: string, daysAgo: number][] = [
   ['digger-dave', 'excavator', 'Digger Dave', 980, -380, 'Team Dino', 48, 'Bridge works', 1],
@@ -53,6 +53,34 @@ export const SAMPLE_LEADERBOARD: LeaderboardEntry[] = [
   { id: 'sample:Hard Hat Harriets', teamName: 'Hard Hat Harriets', xp: 760, spots: 26, types: 11, sample: true },
   { id: 'sample:Kestrel Crew', teamName: 'Kestrel Crew', xp: 540, spots: 19, types: 9, sample: true },
 ];
+
+/**
+ * Places other parents have suggested, waiting in the demo review queue. One
+ * is new, one is a duplicate of Rainbow Splash Pad, so the queue shows both
+ * kinds of decision.
+ */
+const SAMPLE_SUBMISSIONS: [id: string, name: string, category: CategoryId, x: number, y: number, ages: AgeBand[], amenities: AmenityId[], price: 0 | 1, indoor: boolean, tip: string, author: string, hoursAgo: number][] = [
+  ['secret-garden', 'Secret Garden Reading Corner', 'books', -420, 1240, ['toddler', 'kid'], ['shade', 'toilets'], 0, false, 'A little walled garden behind the library with a book swap shelf and shady benches. Lovely for a quiet story on a hot day.', 'Parent of 2', 5],
+  ['fairy-bridge', 'Kestrel Hill Fairy Bridge', 'walks', -2750, 1950, ['toddler', 'kid'], ['picnic'], 0, false, 'Tiny wooden bridge on the lower path with fairy doors along the rail. About 10 minutes from the car park, buggy-friendly when dry.', 'Parent of a 4yo', 20],
+  ['commons-splash', 'Commons splash pad', 'water', 1625, 320, ['baby', 'toddler'], ['toilets'], 0, false, 'Water jets by the Commons car park, great on hot days.', 'Parent of 3', 30],
+];
+
+export function demoSubmissions(center: LatLng): PlaceSubmission[] {
+  return SAMPLE_SUBMISSIONS.map(([id, name, category, x, y, ages, amenities, price, indoor, tip, author, hoursAgo]) => ({
+    id: `sample-${id}`,
+    name,
+    category,
+    coordinate: offset(center, x, y),
+    ages,
+    amenities,
+    price,
+    indoor,
+    tip,
+    author,
+    createdAt: new Date(Date.now() - hoursAgo * 3600000).toISOString(),
+    sample: true,
+  }));
+}
 
 /**
  * A drive through Riverbend used to simulate movement during a hunt in the

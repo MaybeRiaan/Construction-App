@@ -1,5 +1,6 @@
-import type { LatLng, LeaderboardEntry, MachineColour, Spot, VehicleTypeId, VibeCheck } from '../../domain/types';
+import type { LatLng, LeaderboardEntry, MachineColour, Place, PlaceSubmission, Spot, SubmissionReview, VehicleTypeId, VibeCheck } from '../../domain/types';
 import { VEHICLE_BY_ID } from '../../data/vehicles';
+import { communityPlaceId, parseReview, parseSubmission, placeFromSubmission, submissionWire } from '../../domain/contribute';
 import { capability, type ArtifactDb, type ArtifactUser, type DbDocSnapshot } from '../artifactRuntime';
 import { sampleCommunity } from './samples';
 import type { Backend, CommunityState, PlayerStats } from './types';
@@ -13,6 +14,10 @@ import type { Backend, CommunityState, PlayerStats } from './types';
  *   votes/<viewerId>    { ids: string[] }  the spots this viewer likes
  *   vibes/<viewerId>    { checks: [...] }  this viewer's vibe checks
  *   players/<viewerId>  { teamName, xp, spots, types }
+ *   submissions/<viewerId>  { items: [...] }  places this viewer suggested;
+ *                       readable by editors (admin) and the viewer only
+ *   reviews/<submissionId>  { status, reason?, placeId? }  written by editors
+ *   places/<placeId>    an approved place, written by editors
  *
  * Shared data is untrusted input: every field is validated on read and
  * rendered as plain text.
@@ -70,32 +75,49 @@ function readVibes(doc: DbDocSnapshot): VibeCheck[] {
   return out;
 }
 
-/** Serialises writes per document and coalesces bursts into the latest value. */
+/**
+ * Serialises writes per document and coalesces bursts into the latest value.
+ * Resolves whether the value landed; a value replaced before it was sent
+ * reports the outcome of the one that replaced it.
+ */
 function writer(db: ArtifactDb) {
-  const pending = new Map<string, Record<string, unknown> | null>();
+  const pending = new Map<string, { data: Record<string, unknown> | null; done: ((ok: boolean) => void)[] }>();
   const running = new Set<string>();
   async function pump(path: string) {
     if (running.has(path)) return;
     running.add(path);
     try {
       while (pending.has(path)) {
-        const data = pending.get(path)!;
+        const job = pending.get(path)!;
         pending.delete(path);
+        let ok = true;
         try {
-          if (data === null) await db.doc(path).delete();
-          else await db.doc(path).set(data);
+          if (job.data === null) await db.doc(path).delete();
+          else await db.doc(path).set(job.data);
         } catch {
           // Refused or offline: the local copy is still the source of truth.
+          ok = false;
         }
+        job.done.forEach((d) => d(ok));
       }
     } finally {
       running.delete(path);
     }
   }
-  return (path: string, data: Record<string, unknown> | null) => {
-    pending.set(path, data);
-    void pump(path);
-  };
+  return (path: string, data: Record<string, unknown> | null) =>
+    new Promise<boolean>((resolve) => {
+      pending.set(path, { data, done: [...(pending.get(path)?.done ?? []), resolve] });
+      void pump(path);
+    });
+}
+
+function readSubmissions(doc: DbDocSnapshot): PlaceSubmission[] {
+  const items = doc.data()?.items;
+  if (!Array.isArray(items)) return [];
+  return items
+    .slice(0, 30)
+    .map(parseSubmission)
+    .filter((s): s is PlaceSubmission => Boolean(s));
 }
 
 export function createArtifactBackend(): Backend {
@@ -103,10 +125,14 @@ export function createArtifactBackend(): Backend {
   let me: string | null = null;
   let write: ReturnType<typeof writer> | null = null;
   let lastPlayer = '';
+  let canEdit = false;
+  let canWrite: boolean | null = null;
   const ready = (async () => {
     db = await capability<ArtifactDb>('db');
     const user = await capability<ArtifactUser>('user');
     me = (await user?.id().catch(() => null)) ?? null;
+    canEdit = (await user?.canEdit().catch(() => false)) ?? false;
+    canWrite = (await user?.can('data.write').catch(() => null)) ?? null;
     if (db) write = writer(db);
     return Boolean(db && me);
   })();
@@ -122,6 +148,9 @@ export function createArtifactBackend(): Backend {
       let remoteVotes: Record<string, number> = {};
       let remoteVibes: VibeCheck[] = [];
       let remotePlayers: LeaderboardEntry[] = [];
+      let remotePlaces: Place[] = [];
+      let remoteReviews: Record<string, SubmissionReview> = {};
+      let remoteQueue: PlaceSubmission[] = [];
 
       const push = () => {
         const patch: Partial<CommunityState> = {
@@ -129,6 +158,9 @@ export function createArtifactBackend(): Backend {
           votes: { ...samples.votes, ...remoteVotes },
           vibes: [...remoteVibes, ...samples.vibes],
           players: remotePlayers.length >= 3 ? remotePlayers : [...remotePlayers, ...samples.players],
+          places: remotePlaces,
+          reviews: remoteReviews,
+          queue: remoteQueue.filter((s) => !remoteReviews[s.id]),
         };
         emit(patch);
       };
@@ -139,7 +171,7 @@ export function createArtifactBackend(): Backend {
           emit({ status: 'local' });
           return;
         }
-        emit({ status: ok ? 'live' : 'readonly' });
+        emit({ status: ok ? 'live' : 'readonly', canReview: canEdit, canSubmit: ok && canWrite !== false });
         const onErr = () => emit({ status: 'readonly' });
         unsubs.push(
           db.collection('spots').orderBy('createdAt', 'desc').limit(300).onSnapshot((snap) => {
@@ -178,7 +210,36 @@ export function createArtifactBackend(): Backend {
               .filter((x): x is LeaderboardEntry => Boolean(x));
             push();
           }, onErr),
+          db.collection('places').orderBy('createdAt', 'desc').limit(300).onSnapshot((snap) => {
+            remotePlaces = snap.docs
+              .map((d) => {
+                const sub = parseSubmission(d.data());
+                return sub ? placeFromSubmission(sub, d.id) : null;
+              })
+              .filter((p): p is Place => Boolean(p));
+            push();
+          }, onErr),
+          db.collection('reviews').onSnapshot((snap) => {
+            const next: Record<string, SubmissionReview> = {};
+            for (const d of snap.docs) {
+              const r = parseReview(d.id, d.data());
+              if (r) next[d.id] = r;
+            }
+            remoteReviews = next;
+            push();
+          }, onErr),
         );
+        // Everyone's suggestions, for editors reviewing them. Others can't read this path.
+        if (canEdit)
+          unsubs.push(
+            db.collection('submissions').onSnapshot(
+              (snap) => {
+                remoteQueue = snap.docs.flatMap(readSubmissions).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+                push();
+              },
+              () => undefined,
+            ),
+          );
       });
       return () => {
         alive = false;
@@ -188,7 +249,7 @@ export function createArtifactBackend(): Backend {
 
     async publishSpot(spot) {
       if (!(await ready) || !write || !me) return;
-      write(`spots/${spot.id}`, {
+      void write(`spots/${spot.id}`, {
         typeId: spot.typeId,
         nickname: spot.nickname ?? null,
         colour: spot.colour ?? null,
@@ -203,15 +264,15 @@ export function createArtifactBackend(): Backend {
     },
     async unpublishSpot(id) {
       if (!(await ready) || !write) return;
-      write(`spots/${id}`, null);
+      void write(`spots/${id}`, null);
     },
     async syncVotes(ids) {
       if (!(await ready) || !write || !me) return;
-      write(`votes/${me}`, { ids: ids.slice(0, 500), updatedAt: new Date().toISOString() });
+      void write(`votes/${me}`, { ids: ids.slice(0, 500), updatedAt: new Date().toISOString() });
     },
     async syncVibes(vibes) {
       if (!(await ready) || !write || !me) return;
-      write(`vibes/${me}`, {
+      void write(`vibes/${me}`, {
         checks: vibes.slice(0, 100).map((v) => ({
           placeId: v.placeId,
           score: v.score,
@@ -228,7 +289,25 @@ export function createArtifactBackend(): Backend {
       const key = JSON.stringify(stats);
       if (key === lastPlayer) return;
       lastPlayer = key;
-      write(`players/${me}`, { ...stats, updatedAt: new Date().toISOString() });
+      void write(`players/${me}`, { ...stats, updatedAt: new Date().toISOString() });
     },
+    async syncSubmissions(subs) {
+      if (!(await ready) || !write || !me || canWrite === false) return [];
+      const items = subs.slice(0, 30);
+      const ok = await write(`submissions/${me}`, { items: items.map(submissionWire), updatedAt: new Date().toISOString() });
+      return ok ? items.map((s) => s.id) : [];
+    },
+    async review(sub, verdict) {
+      if (!(await ready) || !write || !canEdit) return false;
+      const reviewedAt = new Date().toISOString();
+      if (verdict.status === 'rejected') return write(`reviews/${sub.id}`, { status: 'rejected', reason: verdict.reason, reviewedAt });
+      const placeId = communityPlaceId(sub.id);
+      // Publish the place first, so an approval never points at a missing place.
+      // It carries the review time, not when the parent added it (and so
+      // perhaps when they were standing there).
+      if (!(await write(`places/${placeId}`, { ...submissionWire(sub), createdAt: reviewedAt }))) return false;
+      return write(`reviews/${sub.id}`, { status: 'approved', placeId, reviewedAt });
+    },
+    async resetLocal() {},
   };
 }

@@ -6,13 +6,20 @@ export const Stack = createStackNavigator<RootStackParamList>();
 
 export type Presentation = 'card' | 'modal' | 'sheet' | 'fade';
 
+/**
+ * `headerMode: 'float'` keeps every screen inside its card. Without it the
+ * stack switches to full-page scrolling whenever the app fills the browser
+ * window (a phone), and bottom bars end up below the fold.
+ */
+const base: StackNavigationOptions = { headerShown: false, headerMode: 'float' };
+
 export function presentation(kind: Presentation, bg: string): StackNavigationOptions {
   switch (kind) {
     case 'modal':
-      return { headerShown: false, ...TransitionPresets.ModalSlideFromBottomIOS, cardStyle: { backgroundColor: bg }, gestureEnabled: false };
+      return { ...base, ...TransitionPresets.ModalSlideFromBottomIOS, cardStyle: { backgroundColor: bg }, gestureEnabled: false };
     case 'sheet':
       return {
-        headerShown: false,
+        ...base,
         presentation: 'transparentModal',
         cardStyle: { backgroundColor: 'transparent' },
         cardOverlayEnabled: false,
@@ -20,8 +27,8 @@ export function presentation(kind: Presentation, bg: string): StackNavigationOpt
         gestureEnabled: false,
       };
     case 'fade':
-      return { headerShown: false, cardStyle: { backgroundColor: bg }, cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter };
+      return { ...base, cardStyle: { backgroundColor: bg }, cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter };
     default:
-      return { headerShown: false, ...TransitionPresets.SlideFromRightIOS, cardStyle: { backgroundColor: bg }, gestureEnabled: false };
+      return { ...base, ...TransitionPresets.SlideFromRightIOS, cardStyle: { backgroundColor: bg }, gestureEnabled: false };
   }
 }

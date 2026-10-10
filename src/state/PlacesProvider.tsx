@@ -79,7 +79,10 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
       add(all, v);
       add(extra, v);
     }
-    const merged = raw.map((p) => {
+    // Places parents added and reviewers approved sit alongside the imported ones.
+    const known = new Set(raw.map((p) => p.id));
+    const withCommunity = [...raw, ...community.places.filter((p) => !known.has(p.id))];
+    const merged = withCommunity.map((p) => {
       const checks = extra.get(p.id);
       return checks ? { ...p, stats: mergeStats(p.stats, checks) } : p;
     });
@@ -94,7 +97,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
       error,
       reload: () => setNonce((n) => n + 1),
     };
-  }, [raw, origin, community.vibes, myVibes, status, error, live]);
+  }, [raw, origin, community.vibes, community.places, myVibes, status, error, live]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

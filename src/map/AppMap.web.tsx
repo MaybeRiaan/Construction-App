@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { View } from 'react-native';
-import { project } from '../domain/geo';
+import { config } from '../config';
+import { project, unproject } from '../domain/geo';
 import type { LatLng } from '../domain/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { font } from '../theme/typography';
@@ -11,8 +12,12 @@ import { buildWorld } from './worldGen';
 /**
  * Stylised vector map for the web build: the demo town drawn as SVG, with
  * pan, pinch, wheel and double-tap zoom, clustering and a radar range ring.
- * World units are metres from `origin`, y pointing north.
+ * World units are metres from the town centre, y pointing north, so the town
+ * stays put whatever `origin` a screen starts the camera on.
  */
+
+const TOWN = config.demoCenter;
+const toWorld = (p: LatLng) => project(TOWN, p);
 
 interface Cam {
   x: number;
@@ -41,7 +46,7 @@ function injectStyles() {
 }
 
 export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
-  { origin, radiusKm, markers, onMarkerPress, onMapPress, trail, you, showUser = true, padding = { top: 0, bottom: 0 }, pulseKey, interactive = true, style },
+  { origin, radiusKm, showRange = true, markers, onMarkerPress, onMapPress, trail, you, showUser = true, padding = { top: 0, bottom: 0 }, pulseKey, interactive = true, onCenterChange, style },
   ref,
 ) {
   const { c } = useTheme();
@@ -66,8 +71,8 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
     return () => ro.disconnect();
   }, []);
 
-  const toWorld = useCallback((p: LatLng) => project(origin, p), [origin]);
-  const projected = useMemo(() => markers.map((m) => ({ m, p: toWorld(m.coordinate) })), [markers, toWorld]);
+  const o = useMemo(() => toWorld(origin), [origin]);
+  const projected = useMemo(() => markers.map((m) => ({ m, p: toWorld(m.coordinate) })), [markers]);
   const projectedRef = useRef(projected);
   projectedRef.current = projected;
 
@@ -102,11 +107,11 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
       if (!size.w || !size.h) return;
       const visH = Math.max(120, size.h - padding.top - padding.bottom);
       const s = clampS((Math.min(size.w, visH) / 2) * 0.92 / (km * 1000));
-      const target = camFor(0, 0, s);
+      const target = camFor(o.x, o.y, s);
       if (instant) setCam(target);
       else animateTo(target);
     },
-    [size.w, size.h, padding.top, padding.bottom, camFor, animateTo],
+    [size.w, size.h, padding.top, padding.bottom, camFor, animateTo, o],
   );
 
   useImperativeHandle(ref, () => ({
@@ -117,6 +122,19 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
     },
     recenter: () => fitRadius(radiusKm ?? 3),
   }));
+
+  // Report the middle of the visible area once the camera settles.
+  const centerCb = useRef(onCenterChange);
+  centerCb.current = onCenterChange;
+  useEffect(() => {
+    if (!centerCb.current || !size.h || !fitted.current) return;
+    const t = setTimeout(() => {
+      const visH = Math.max(80, size.h - padding.top - padding.bottom);
+      const dy = padding.top + visH / 2 - size.h / 2;
+      centerCb.current?.(unproject(TOWN, cam.x, cam.y - dy / cam.s));
+    }, 160);
+    return () => clearTimeout(t);
+  }, [cam, size.h, padding.top, padding.bottom]);
 
   // First fit once the container has a size.
   useEffect(() => {
@@ -278,8 +296,9 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
       const q = toWorld(p);
       return `${i ? 'L' : 'M'}${Math.round(q.x)} ${Math.round(q.y)}`;
     }).join('');
-  }, [trail, toWorld]);
+  }, [trail]);
 
+  const ring = radiusKm && showRange;
   const radiusPx = radiusKm ? radiusKm * 1000 * pxPerM : 0;
   const m = c.map;
   const labelFont = font('body', 700);
@@ -356,24 +375,24 @@ export const AppMap = forwardRef<AppMapHandle, AppMapProps>(function AppMap(
                   </text>
                 );
               })}
-            {radiusKm ? (
+            {ring ? (
               <g>
-                <circle cx={sx(0)} cy={sy(0)} r={radiusPx} fill={m.radiusFill} stroke={m.radiusStroke} strokeWidth={1.5} strokeDasharray="6 6" />
-                <circle cx={sx(0)} cy={sy(0)} r={radiusPx * 0.5} fill="none" stroke={m.radiusStroke} strokeOpacity={0.35} strokeWidth={1} strokeDasharray="2 6" />
+                <circle cx={sx(o.x)} cy={sy(o.y)} r={radiusPx} fill={m.radiusFill} stroke={m.radiusStroke} strokeWidth={1.5} strokeDasharray="6 6" />
+                <circle cx={sx(o.x)} cy={sy(o.y)} r={radiusPx * 0.5} fill="none" stroke={m.radiusStroke} strokeOpacity={0.35} strokeWidth={1} strokeDasharray="2 6" />
               </g>
             ) : null}
           </svg>
         )}
 
         {/* Radar pulse when the range changes */}
-        {radiusKm && w > 0 ? (
+        {ring && w > 0 ? (
           <div
             key={`pulse${pulseKey ?? 0}`}
             className="pd-anim"
             style={{
               position: 'absolute',
-              left: sx(0) - radiusPx,
-              top: sy(0) - radiusPx,
+              left: sx(o.x) - radiusPx,
+              top: sy(o.y) - radiusPx,
               width: radiusPx * 2,
               height: radiusPx * 2,
               borderRadius: '50%',

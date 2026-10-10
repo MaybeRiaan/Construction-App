@@ -137,6 +137,7 @@ export function PlaceScreen() {
               </View>
               {p.sponsored ? <Pill label={p.sponsored.label ?? 'Sponsored'} tone="accent" icon="star" /> : null}
               {p.source === 'osm' ? <Pill label="OpenStreetMap" tone="neutral" icon="globe" /> : null}
+              {p.source === 'community' ? <Pill label={p.addedBy ? `Added by ${p.addedBy}` : 'Added by a parent'} tone="success" icon="users" /> : null}
               {data.mode === 'demo' ? <Pill label="Demo town" tone="neutral" /> : null}
             </View>
             <T variant="h1">{p.name}</T>

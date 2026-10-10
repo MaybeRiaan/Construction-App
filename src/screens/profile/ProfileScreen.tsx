@@ -6,11 +6,13 @@ import { LogoMark } from '../../art/Logo';
 import { levelFor } from '../../domain/game';
 import { useTabBarSpace } from '../../navigation/TabBar';
 import { useCommunity } from '../../state/CommunityProvider';
+import { useContribute } from '../../state/contribute';
 import { totalXp, useHunt } from '../../state/hunt';
 import { useLocation } from '../../state/LocationProvider';
 import { usePlaces } from '../../state/places';
 import { useSettings, type ThemePref } from '../../state/settings';
 import { toast } from '../../state/ui';
+import { useScout } from '../../state/useScout';
 import { neu } from '../../theme/neu';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radii } from '../../theme/tokens';
@@ -69,6 +71,7 @@ export function ProfileScreen() {
   const claimed = useHunt((x) => x.claimed);
   const saved = usePlaces((x) => Object.keys(x.saved).length);
   const vibes = usePlaces((x) => x.myVibes.length);
+  const scout = useScout();
   const [editingTeam, setEditingTeam] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const level = levelFor(totalXp({ spots, claimed }));
@@ -86,6 +89,8 @@ export function ProfileScreen() {
     useHunt.getState().resetAll();
     usePlaces.getState().resetAll();
     useSettings.getState().resetAll();
+    useContribute.getState().resetAll();
+    void community.resetLocal();
     setConfirmReset(false);
     nav.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
   };
@@ -127,6 +132,26 @@ export function ProfileScreen() {
           <Stat value={spots.length} label="Machines" />
           <Stat value={`L${level.level}`} label={level.title} />
         </Surface>
+
+        <Press
+          onPress={() => nav.navigate('Scout')}
+          accessibilityRole="button"
+          accessibilityLabel={`Your places. ${scout.points} Scout points`}
+          style={{ backgroundColor: c.ink, borderRadius: radii.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+        >
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="award" size={22} color={c.onAccent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <T variant="bodyStrong" color={c.onInk}>
+              {scout.points} Scout points · {scout.rank.title}
+            </T>
+            <T variant="small" color={c.onInk} style={{ opacity: 0.75 }}>
+              {scout.items.length ? `${scout.live} live · ${scout.waiting} waiting for review` : 'Add places you love and help other families'}
+            </T>
+          </View>
+          <Icon name="chevronRight" size={18} color={c.onInk} />
+        </Press>
 
         <View style={{ gap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -231,6 +256,14 @@ export function ProfileScreen() {
         </View>
 
         <View>
+          {community.canReview ? (
+            <LinkRow
+              icon="listChecks"
+              title="Review queue"
+              hint={`${community.queue.length} ${community.queue.length === 1 ? 'place' : 'places'} waiting${community.backend === 'demo' ? ' · the Playdar team’s view' : ''}`}
+              onPress={() => nav.navigate('Review')}
+            />
+          ) : null}
           <LinkRow icon="store" title="Run a kid-friendly venue?" hint="Get featured on Playdar" onPress={() => nav.navigate('Business')} />
           <LinkRow icon="shield" title="Privacy & safety" hint="How we look after families" onPress={() => nav.navigate('About')} />
         </View>
@@ -239,7 +272,7 @@ export function ProfileScreen() {
           <Surface depth="insetSm" radius={radii.lg} style={{ padding: 16, gap: 12 }}>
             <T variant="bodyStrong">Reset everything on this device?</T>
             <T variant="small" tone="muted">
-              This clears your kids, saved places, vibe checks and Hunt progress, then restarts setup.
+              This clears your kids, saved places, vibe checks, added places and Hunt progress, then restarts setup.
             </T>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Button title="Cancel" variant="soft" style={{ flex: 1 }} onPress={() => setConfirmReset(false)} />
